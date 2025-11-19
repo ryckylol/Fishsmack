@@ -4,7 +4,7 @@ import pygame_aseprite_animation
 
 pygame.init()
 
-WINDOW_SIZE = (800, 600)
+WINDOW_SIZE = (1280, 720)
 FPS = 60
 
 screen = pygame.display.set_mode(WINDOW_SIZE, pygame.RESIZABLE)
