@@ -1,37 +1,62 @@
-import os
 import pygame
-from spritesheet import Spritesheet
+from penguin import Penguin
 
 pygame.init()
 
 display_W, display_H = 1280, 720
-canvas = pygame.Surface((display_W, display_H))
 window = pygame.display.set_mode((display_W, display_H))
-FPS = 60
-
+canvas = pygame.Surface((display_W, display_H))
 pygame.display.set_caption("Fishsmack")
 
-# main loop
+FPS = 60
 clock = pygame.time.Clock()
-running = True
 
-my_spritesheet = Spritesheet("../Assets/Sheets/penguin_baseSheet.png")
-penguin = my_spritesheet.get_sprite(0, 0, 64, 64)
+NATIVE_W, NATIVE_H = 480, 270
+SCALE = display_W / NATIVE_W
+
+floor_top = int(display_H * 0.30) 
+floor_height = display_H - floor_top - -20
+side_padding = -10
+
+walkable_rect = pygame.Rect(
+    side_padding,
+    floor_top,
+    display_W - (side_padding * 2),
+    floor_height
+)
+
+try:
+    background = pygame.image.load("../Assets/background.png").convert()
+    background = pygame.transform.scale(background, (display_W, display_H))
+except FileNotFoundError:
+    background = pygame.Surface((display_W, display_H))
+    background.fill((50, 50, 50))
+
+
+penguin = Penguin(scale=SCALE)
+penguin.x = walkable_rect.centerx - (penguin.width / 2)
+penguin.y = walkable_rect.centery
+
+running = True
+DEBUG_SHOW_BOUNDARIES = True 
 
 while running:
+    dt = clock.tick(FPS) 
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_SPACE:
-                pass
 
-    pygame.display.flip()
-    clock.tick(FPS)
+    penguin.update(dt, walkable_rect)
 
-    canvas.fill((255, 255, 255))
-    canvas.blit(penguin, (0, display_H - 128))
-    window.blit(canvas, (0,0))
-    pygame.display.update()
+    canvas.blit(background, (0, 0))
     
+    penguin.draw(canvas)
+
+    if DEBUG_SHOW_BOUNDARIES:
+        pygame.draw.rect(canvas, (255, 0, 0), walkable_rect, 2)
+
+    window.blit(canvas, (0, 0))
+    pygame.display.flip()
+
 pygame.quit()
