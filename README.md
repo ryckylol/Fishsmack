@@ -29,5 +29,3 @@ Build meter by dealing damage. Taking damage reduces your meter.
 ## Requirements 
 - Python 3.8+
 - [Pygame](https://www.pygame.org/)  
-- [pygame_aseprite_animation](https://github.com/ISebSej/pygame_aseprite_animation)
-    - Used to load and play Aseprite files directly (didn't want to use sprite sheets).
