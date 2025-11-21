@@ -5,13 +5,21 @@ class Spritesheet:
     def __init__(self, filename, scale_factor=1):
         self.filename = filename
         script_dir = os.path.dirname(__file__)
-
         full_path = os.path.abspath(os.path.join(script_dir, filename))
-
+        
         try:
+            if not os.path.exists(full_path):
+                current_dir = os.getcwd()
+                full_path = os.path.abspath(os.path.join(current_dir, filename))
+                
+            if not os.path.exists(full_path):
+                raise FileNotFoundError(f"File not found in expected locations: {full_path}")
+                
             self.sprite_sheet = pygame.image.load(full_path).convert_alpha()
         except pygame.error:
-            print(f"ERROR: Could not load spritesheet: {full_path}. Using placeholder surface.")
+            self.sprite_sheet = pygame.Surface((128, 64), pygame.SRCALPHA)
+            self.sprite_sheet.fill((255, 0, 255))
+        except FileNotFoundError:
             self.sprite_sheet = pygame.Surface((128, 64), pygame.SRCALPHA)
             self.sprite_sheet.fill((255, 0, 255))
             

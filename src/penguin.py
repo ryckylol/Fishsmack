@@ -4,88 +4,103 @@ from animation import Animation
 import math
 
 class Penguin:
+    MAX_HEALTH = 165
+    MAX_SPECIAL_FUEL = 100 
+
     def __init__(self, scale):
-        self.scale = scale
-        
+        self.scale = scale        
         self.idle_sheet = Spritesheet("../Assets/Sheets/penguin_base_Sheet.png", scale)
         idle_frame_data = [
             (0, 0, 64, 64),
         ]
-        self.idle_animation = Animation(self.idle_sheet, idle_frame_data, frame_duration=300)
 
+        self.idle_animation = Animation(self.idle_sheet, idle_frame_data, frame_duration=300)
         self.movement_sheet = Spritesheet("../Assets/Sheets/penguin_walkCycle_Sheet.png", scale)
         movement_frame_data = [
             (64, 0, 64, 64),
             (0, 0, 64, 64),
         ]
-        self.movement_animation = Animation(self.movement_sheet, movement_frame_data, frame_duration=150)
 
+        self.movement_animation = Animation(self.movement_sheet, movement_frame_data, frame_duration=150)
         self.swing_light_sheet = Spritesheet("../Assets/Sheets/penguin_swingL_Sheet.png", scale)
         light_frame_data = [
             (0, 0, 64, 64),
             (64, 0, 64, 64),
         ]
+
         self.light_animation = Animation(self.swing_light_sheet, light_frame_data, frame_duration=100)
         self.light_attack_duration = len(light_frame_data) * 100 
-
         self.swing_heavy_sheet = Spritesheet("../Assets/Sheets/penguin_swingH_Sheet.png", scale)
         heavy_frame_data = [
             (0, 0, 64, 64),
             (64, 0, 64, 64),
         ]
+
         self.heavy_animation = Animation(self.swing_heavy_sheet, heavy_frame_data, frame_duration=100)
-        self.heavy_attack_duration = len(heavy_frame_data) * 100
-        
+        self.heavy_attack_duration = len(heavy_frame_data) * 100        
         self.swing_special_sheet = Spritesheet("../Assets/Sheets/penguin_swingS_Sheet.png", scale)
         special_frame_data = [
             (0, 0, 64, 64),
             (64, 0, 64, 64),
         ]
-        self.special_animation = Animation(self.swing_special_sheet, special_frame_data, frame_duration=300) 
-        
-        self.special_meter = 100
-        self.min_special_cost = 50
+
+        self.special_animation = Animation(self.swing_special_sheet, special_frame_data, frame_duration=300)         
+        self.special_meter = 0 
+        self.external_special_meter = None 
+        self.min_special_cost = 0 
         self.special_drain_rate = 50
-        self.is_special_attacking = False
-        
+        self.is_special_attacking = False       
         self.special_speed_multiplier = 1.5
         self.special_flip_timer = 0
-        self.special_flip_interval = 100
-        
+        self.special_flip_interval = 100       
         self.wobble_timer = 0
         self.wobble_speed = 10 
         self.wobble_amplitude = 5 * scale
-
         self.special_hitbox_size = (int(50 * scale), int(40 * scale)) 
         self.left_attack_hitbox_rect = pygame.Rect(0, 0, *self.special_hitbox_size)
-        self.right_attack_hitbox_rect = pygame.Rect(0, 0, *self.special_hitbox_size)
-        
-        self.current_animation = self.idle_animation
-        
+        self.right_attack_hitbox_rect = pygame.Rect(0, 0, *self.special_hitbox_size)        
+        self.current_animation = self.idle_animation       
         self.x = 0
         self.y = 0
         self.width = 64 * scale
         self.height = 64 * scale
         self.speed = 300
         self.facing_right = True 
-
+        self.max_health = self.MAX_HEALTH
+        self.health = self.max_health 
         self.is_attacking = False
-        self.attack_type = None
-        self.attack_damage = 15 
-        
-        self.max_combo_hits = 3          
-        self.combo_hit_count = 0         
-        self.combo_reset_time = 600      
-        self.combo_reset_timer = 0       
-        
+        self.attack_type = None       
+        self.light_damage = 15 
+        self.heavy_damage = 30
+        self.special_damage = 10
+        self.current_attack_damage = 0
+        self.enemies_hit_in_attack = set()        
+        self.max_combo_hits = 3 
+        self.combo_hit_count = 0 
+        self.combo_reset_time = 600 
+        self.combo_reset_timer = 0         
         self.light_cooldown = 300
         self.heavy_cooldown = 500
         self.special_cooldown = 300
         self.attack_cooldown_timer = 0
-
         self.hitbox_size = (int(50 * scale), int(40 * scale)) 
         self.attack_hitbox_rect = pygame.Rect(0, 0, *self.hitbox_size)
         self.attack_hitbox_rect.topleft = (-1000, -1000)
+
+    def set_special_meter(self, meter_ref):
+        self.external_special_meter = meter_ref
+        
+    def take_damage(self, damage_amount):
+        if self.health <= 0:
+            return
+            
+        self.health -= damage_amount
+        if self.health < 0:
+            self.health = 0
+        
+        if self.health == 0:
+            print("Penguin defeated!")
+
 
     def start_attack(self):
         if self.is_attacking or self.attack_cooldown_timer > 0 or self.is_special_attacking:
@@ -97,51 +112,57 @@ class Penguin:
         if self.combo_hit_count >= self.max_combo_hits:
             return
 
-        self.combo_hit_count += 1
-        
+        self.combo_hit_count += 1        
         self.is_attacking = True
         self.attack_type = 'light'
         self.attack_active_timer = 0
         self.current_animation = self.light_animation
         self.light_animation.reset() 
-
+        self.current_attack_damage = self.light_damage
+        self.enemies_hit_in_attack.clear()       
         self.combo_reset_timer = 0
         
     def start_heavy_attack(self):
         if self.is_attacking or self.attack_cooldown_timer > 0 or self.is_special_attacking:
             return
             
-        self.combo_hit_count = 0
-        
+        self.combo_hit_count = 0       
         self.is_attacking = True
         self.attack_type = 'heavy'
         self.attack_active_timer = 0
         self.current_animation = self.heavy_animation
-        self.heavy_animation.reset()
-        
+        self.heavy_animation.reset()        
+        self.current_attack_damage = self.heavy_damage
+        self.enemies_hit_in_attack.clear()        
         self.combo_reset_timer = 0
         
     def start_special_attack(self):
-        if self.attack_cooldown_timer > 0 or self.special_meter < self.min_special_cost or self.is_special_attacking:
+        if self.attack_cooldown_timer > 0 or self.is_special_attacking:
             return
             
+        if self.external_special_meter is None or not self.external_special_meter.is_full():
+            return
+            
+        self.external_special_meter.reset_power()
         self.is_attacking = False
         self.attack_type = None
         self.combo_hit_count = 0
-        self.combo_reset_timer = 0
-        
+        self.combo_reset_timer = 0       
         self.is_special_attacking = True
         self.current_animation = self.special_animation
-        self.special_animation.reset()
+        self.special_animation.reset()        
+        self.current_attack_damage = self.special_damage
+        self.enemies_hit_in_attack.clear()       
         self.special_flip_timer = 0
-        self.wobble_timer = 0
+        self.wobble_timer = 0       
+        self.special_meter = self.MAX_SPECIAL_FUEL 
         
     def update(self, dt, boundary_rect):
         keys = pygame.key.get_pressed()
         
+        self.attack_hitbox_rect.topleft = (-1000, -1000)
         self.left_attack_hitbox_rect.topleft = (-1000, -1000)
         self.right_attack_hitbox_rect.topleft = (-1000, -1000)
-        self.attack_hitbox_rect.topleft = (-1000, -1000)
         
         if self.attack_cooldown_timer > 0:
             self.attack_cooldown_timer -= dt
@@ -173,6 +194,8 @@ class Penguin:
                 self.special_meter = 0
                 self.is_special_attacking = False
                 self.current_animation = self.idle_animation
+                self.current_attack_damage = 0
+                self.enemies_hit_in_attack.clear()
                 self.attack_cooldown_timer = self.special_cooldown
 
         elif self.is_attacking:
@@ -189,6 +212,8 @@ class Penguin:
             if self.attack_active_timer >= attack_duration:
                 
                 self.is_attacking = False
+                self.current_attack_damage = 0
+                self.enemies_hit_in_attack.clear()
                 self.attack_active_timer = 0
                 self.current_animation = self.idle_animation 
 
@@ -206,9 +231,7 @@ class Penguin:
                         self.combo_reset_timer = self.combo_reset_time
 
         is_moving = False
-        
         current_speed = self.speed
-        
         can_move = not self.is_attacking 
         
         if self.is_special_attacking:
@@ -240,19 +263,19 @@ class Penguin:
                     if self.current_animation != self.idle_animation:
                         self.current_animation = self.idle_animation
                         self.idle_animation.reset()
-                    
+                        
         self.x = max(boundary_rect.left, min(self.x, boundary_rect.right - self.width))
         self.y = max(boundary_rect.top, min(self.y, boundary_rect.bottom - self.height))
 
         hitbox_y = self.y + (self.height / 2) - (self.hitbox_size[1] / 2) 
 
         if self.is_special_attacking:
-             hitbox_left_x = self.x - self.special_hitbox_size[0] + (5 * self.scale)
-             hitbox_right_x = self.x + self.width - (5 * self.scale) 
-             
-             self.left_attack_hitbox_rect.topleft = (hitbox_left_x, hitbox_y)
-             self.right_attack_hitbox_rect.topleft = (hitbox_right_x, hitbox_y)
-             
+            hitbox_left_x = self.x - self.special_hitbox_size[0] + (5 * self.scale)
+            hitbox_right_x = self.x + self.width - (5 * self.scale) 
+            
+            self.left_attack_hitbox_rect.topleft = (hitbox_left_x, hitbox_y)
+            self.right_attack_hitbox_rect.topleft = (hitbox_right_x, hitbox_y)
+            
         elif self.is_attacking:
             self.attack_hitbox_rect.size = (int(50 * self.scale), int(40 * self.scale))
 
