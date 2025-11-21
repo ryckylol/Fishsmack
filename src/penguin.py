@@ -8,7 +8,7 @@ class Penguin:
     MAX_SPECIAL_FUEL = 100 
 
     def __init__(self, scale):
-        self.scale = scale        
+        self.scale = scale 
         self.idle_sheet = Spritesheet("../Assets/Sheets/penguin_base_Sheet.png", scale)
         idle_frame_data = [
             (0, 0, 64, 64),
@@ -37,55 +37,66 @@ class Penguin:
         ]
 
         self.heavy_animation = Animation(self.swing_heavy_sheet, heavy_frame_data, frame_duration=100)
-        self.heavy_attack_duration = len(heavy_frame_data) * 100        
+        self.heavy_attack_duration = len(heavy_frame_data) * 100 
         self.swing_special_sheet = Spritesheet("../Assets/Sheets/penguin_swingS_Sheet.png", scale)
         special_frame_data = [
             (0, 0, 64, 64),
             (64, 0, 64, 64),
         ]
 
-        self.special_animation = Animation(self.swing_special_sheet, special_frame_data, frame_duration=300)         
+        self.special_animation = Animation(self.swing_special_sheet, special_frame_data, frame_duration=300) 
         self.special_meter = 0 
         self.external_special_meter = None 
         self.min_special_cost = 0 
         self.special_drain_rate = 50
-        self.is_special_attacking = False       
+        self.is_special_attacking = False 
         self.special_speed_multiplier = 1.5
         self.special_flip_timer = 0
-        self.special_flip_interval = 100       
+        self.special_flip_interval = 100 
         self.wobble_timer = 0
         self.wobble_speed = 10 
         self.wobble_amplitude = 5 * scale
         self.special_hitbox_size = (int(50 * scale), int(40 * scale)) 
         self.left_attack_hitbox_rect = pygame.Rect(0, 0, *self.special_hitbox_size)
-        self.right_attack_hitbox_rect = pygame.Rect(0, 0, *self.special_hitbox_size)        
-        self.current_animation = self.idle_animation       
+        self.right_attack_hitbox_rect = pygame.Rect(0, 0, *self.special_hitbox_size) 
+        self.current_animation = self.idle_animation 
         self.x = 0
         self.y = 0
-        self.width = 64 * scale
-        self.height = 64 * scale
+        
+        self.sprite_width = 64 * scale
+        self.sprite_height = 64 * scale
+        self.width = 40 * scale
+        self.height = 40 * scale
+        self.hurtbox_offset_x = (self.sprite_width - self.width) / 2
+        self.hurtbox_offset_y = (self.sprite_height - self.height) / 2
+        
         self.speed = 300
         self.facing_right = True 
         self.max_health = self.MAX_HEALTH
         self.health = self.max_health 
         self.is_attacking = False
-        self.attack_type = None       
+        self.attack_type = None 
         self.light_damage = 15 
         self.heavy_damage = 30
         self.special_damage = 10
         self.current_attack_damage = 0
-        self.enemies_hit_in_attack = set()        
+        self.enemies_hit_in_attack = set() 
         self.max_combo_hits = 3 
         self.combo_hit_count = 0 
         self.combo_reset_time = 600 
-        self.combo_reset_timer = 0         
+        self.combo_reset_timer = 0 
         self.light_cooldown = 300
         self.heavy_cooldown = 500
         self.special_cooldown = 300
         self.attack_cooldown_timer = 0
+        
         self.hitbox_size = (int(50 * scale), int(40 * scale)) 
         self.attack_hitbox_rect = pygame.Rect(0, 0, *self.hitbox_size)
         self.attack_hitbox_rect.topleft = (-1000, -1000)
+
+        self.damage_flash_timer = 0
+        self.damage_flash_duration = 150
+        self.flash_color = (255, 100, 100)
 
     def set_special_meter(self, meter_ref):
         self.external_special_meter = meter_ref
@@ -97,6 +108,8 @@ class Penguin:
         self.health -= damage_amount
         if self.health < 0:
             self.health = 0
+
+        self.damage_flash_timer = self.damage_flash_duration
         
         if self.health == 0:
             print("Penguin defeated!")
@@ -112,28 +125,28 @@ class Penguin:
         if self.combo_hit_count >= self.max_combo_hits:
             return
 
-        self.combo_hit_count += 1        
+        self.combo_hit_count += 1 
         self.is_attacking = True
         self.attack_type = 'light'
         self.attack_active_timer = 0
         self.current_animation = self.light_animation
         self.light_animation.reset() 
         self.current_attack_damage = self.light_damage
-        self.enemies_hit_in_attack.clear()       
+        self.enemies_hit_in_attack.clear() 
         self.combo_reset_timer = 0
         
     def start_heavy_attack(self):
         if self.is_attacking or self.attack_cooldown_timer > 0 or self.is_special_attacking:
             return
             
-        self.combo_hit_count = 0       
+        self.combo_hit_count = 0 
         self.is_attacking = True
         self.attack_type = 'heavy'
         self.attack_active_timer = 0
         self.current_animation = self.heavy_animation
-        self.heavy_animation.reset()        
+        self.heavy_animation.reset() 
         self.current_attack_damage = self.heavy_damage
-        self.enemies_hit_in_attack.clear()        
+        self.enemies_hit_in_attack.clear() 
         self.combo_reset_timer = 0
         
     def start_special_attack(self):
@@ -147,18 +160,22 @@ class Penguin:
         self.is_attacking = False
         self.attack_type = None
         self.combo_hit_count = 0
-        self.combo_reset_timer = 0       
+        self.combo_reset_timer = 0 
         self.is_special_attacking = True
         self.current_animation = self.special_animation
-        self.special_animation.reset()        
+        self.special_animation.reset() 
         self.current_attack_damage = self.special_damage
-        self.enemies_hit_in_attack.clear()       
+        self.enemies_hit_in_attack.clear() 
         self.special_flip_timer = 0
-        self.wobble_timer = 0       
+        self.wobble_timer = 0 
         self.special_meter = self.MAX_SPECIAL_FUEL 
         
     def update(self, dt, boundary_rect):
         keys = pygame.key.get_pressed()
+        if self.damage_flash_timer > 0:
+            self.damage_flash_timer -= dt
+            if self.damage_flash_timer < 0:
+                self.damage_flash_timer = 0
         
         self.attack_hitbox_rect.topleft = (-1000, -1000)
         self.left_attack_hitbox_rect.topleft = (-1000, -1000)
@@ -288,9 +305,12 @@ class Penguin:
 
 
     def draw(self, surface, debug_show_hitboxes=False):
-        image = self.current_animation.get_frame()
+        image = self.current_animation.get_frame().copy()
+        if self.damage_flash_timer > 0:
+            image.fill(self.flash_color, special_flags=pygame.BLEND_RGB_ADD)
         
-        draw_x = self.x
+        draw_x = self.x - self.hurtbox_offset_x
+        draw_y = self.y - self.hurtbox_offset_y
         
         if self.is_special_attacking:
             offset = math.sin(self.wobble_timer * math.pi * 2) * self.wobble_amplitude
@@ -299,9 +319,11 @@ class Penguin:
         if not self.facing_right:
             image = pygame.transform.flip(image, True, False)
 
-        surface.blit(image, (draw_x, self.y))
+        surface.blit(image, (draw_x, draw_y))
         
         if debug_show_hitboxes:
+            pygame.draw.rect(surface, (255, 0, 0), pygame.Rect(self.x, self.y, self.width, self.height), 2)
+            
             if self.is_special_attacking:
                 pygame.draw.rect(surface, (0, 255, 255), self.left_attack_hitbox_rect, 2)
                 pygame.draw.rect(surface, (0, 255, 255), self.right_attack_hitbox_rect, 2)
