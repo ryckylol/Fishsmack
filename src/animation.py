@@ -14,3 +14,7 @@ class Animation:
 
     def get_frame(self):
         return self.frames[self.index]
+        
+    def reset(self):
+        self.index = 0
+        self.timer = 0
