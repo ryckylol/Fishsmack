@@ -1,25 +1,66 @@
 import pygame
 from spritesheet import Spritesheet
 from animation import Animation
+import math
 
 class Penguin:
     def __init__(self, scale):
         self.scale = scale
+        
+        self.idle_sheet = Spritesheet("../Assets/Sheets/penguin_base_Sheet.png", scale)
+        idle_frame_data = [
+            (0, 0, 64, 64),
+        ]
+        self.idle_animation = Animation(self.idle_sheet, idle_frame_data, frame_duration=300)
+
         self.movement_sheet = Spritesheet("../Assets/Sheets/penguin_walkCycle_Sheet.png", scale)
         movement_frame_data = [
-            (0, 0, 64, 64),
             (64, 0, 64, 64),
+            (0, 0, 64, 64),
         ]
         self.movement_animation = Animation(self.movement_sheet, movement_frame_data, frame_duration=150)
 
-        self.swing_sheet = Spritesheet("../Assets/Sheets/penguin_swingL_Sheet.png", scale)
-        swing_frame_data = [
+        self.swing_light_sheet = Spritesheet("../Assets/Sheets/penguin_swingL_Sheet.png", scale)
+        light_frame_data = [
             (0, 0, 64, 64),
             (64, 0, 64, 64),
         ]
-        self.swing_animation = Animation(self.swing_sheet, swing_frame_data, frame_duration=100)
+        self.light_animation = Animation(self.swing_light_sheet, light_frame_data, frame_duration=100)
+        self.light_attack_duration = len(light_frame_data) * 100 
 
-        self.current_animation = self.movement_animation
+        self.swing_heavy_sheet = Spritesheet("../Assets/Sheets/penguin_swingH_Sheet.png", scale)
+        heavy_frame_data = [
+            (0, 0, 64, 64),
+            (64, 0, 64, 64),
+        ]
+        self.heavy_animation = Animation(self.swing_heavy_sheet, heavy_frame_data, frame_duration=100)
+        self.heavy_attack_duration = len(heavy_frame_data) * 100
+        
+        self.swing_special_sheet = Spritesheet("../Assets/Sheets/penguin_swingS_Sheet.png", scale)
+        special_frame_data = [
+            (0, 0, 64, 64),
+            (64, 0, 64, 64),
+        ]
+        self.special_animation = Animation(self.swing_special_sheet, special_frame_data, frame_duration=300) 
+        
+        self.special_meter = 100
+        self.min_special_cost = 50
+        self.special_drain_rate = 50
+        self.is_special_attacking = False
+        
+        self.special_speed_multiplier = 1.5
+        self.special_flip_timer = 0
+        self.special_flip_interval = 100
+        
+        self.wobble_timer = 0
+        self.wobble_speed = 10 
+        self.wobble_amplitude = 5 * scale
+
+        self.special_hitbox_size = (int(50 * scale), int(40 * scale)) 
+        self.left_attack_hitbox_rect = pygame.Rect(0, 0, *self.special_hitbox_size)
+        self.right_attack_hitbox_rect = pygame.Rect(0, 0, *self.special_hitbox_size)
+        
+        self.current_animation = self.idle_animation
         
         self.x = 0
         self.y = 0
@@ -29,26 +70,25 @@ class Penguin:
         self.facing_right = True 
 
         self.is_attacking = False
-        self.attack_damage = 15
+        self.attack_type = None
+        self.attack_damage = 15 
         
-        self.max_combo_hits = 3 
-        self.combo_hit_count = 0 
-        self.combo_reset_time = 600
-        self.combo_reset_timer = 0
-        self.full_recovery_delay = 300 
-        self.recovery_timer = 0
-
-        self.attack_duration = len(swing_frame_data) * 100 
-        self.attack_active_timer = 0
+        self.max_combo_hits = 3          
+        self.combo_hit_count = 0         
+        self.combo_reset_time = 600      
+        self.combo_reset_timer = 0       
+        
+        self.light_cooldown = 300
+        self.heavy_cooldown = 500
+        self.special_cooldown = 300
+        self.attack_cooldown_timer = 0
 
         self.hitbox_size = (int(50 * scale), int(40 * scale)) 
-        
         self.attack_hitbox_rect = pygame.Rect(0, 0, *self.hitbox_size)
         self.attack_hitbox_rect.topleft = (-1000, -1000)
 
     def start_attack(self):
-        """Initiates the light attack (swingL)."""
-        if self.is_attacking or self.recovery_timer > 0:
+        if self.is_attacking or self.attack_cooldown_timer > 0 or self.is_special_attacking:
             return
 
         if self.combo_reset_timer <= 0:
@@ -60,72 +100,161 @@ class Penguin:
         self.combo_hit_count += 1
         
         self.is_attacking = True
+        self.attack_type = 'light'
         self.attack_active_timer = 0
-        self.swing_animation.reset() 
-        self.current_animation = self.swing_animation
+        self.current_animation = self.light_animation
+        self.light_animation.reset() 
 
         self.combo_reset_timer = 0
-
+        
+    def start_heavy_attack(self):
+        if self.is_attacking or self.attack_cooldown_timer > 0 or self.is_special_attacking:
+            return
+            
+        self.combo_hit_count = 0
+        
+        self.is_attacking = True
+        self.attack_type = 'heavy'
+        self.attack_active_timer = 0
+        self.current_animation = self.heavy_animation
+        self.heavy_animation.reset()
+        
+        self.combo_reset_timer = 0
+        
+    def start_special_attack(self):
+        if self.attack_cooldown_timer > 0 or self.special_meter < self.min_special_cost or self.is_special_attacking:
+            return
+            
+        self.is_attacking = False
+        self.attack_type = None
+        self.combo_hit_count = 0
+        self.combo_reset_timer = 0
+        
+        self.is_special_attacking = True
+        self.current_animation = self.special_animation
+        self.special_animation.reset()
+        self.special_flip_timer = 0
+        self.wobble_timer = 0
+        
     def update(self, dt, boundary_rect):
         keys = pygame.key.get_pressed()
         
-        if self.recovery_timer > 0:
-            self.recovery_timer -= dt
-            if self.recovery_timer < 0:
-                self.recovery_timer = 0
+        self.left_attack_hitbox_rect.topleft = (-1000, -1000)
+        self.right_attack_hitbox_rect.topleft = (-1000, -1000)
+        self.attack_hitbox_rect.topleft = (-1000, -1000)
+        
+        if self.attack_cooldown_timer > 0:
+            self.attack_cooldown_timer -= dt
+            if self.attack_cooldown_timer < 0:
+                self.attack_cooldown_timer = 0
 
         if self.combo_reset_timer > 0:
             self.combo_reset_timer -= dt
             if self.combo_reset_timer <= 0:
                 self.combo_hit_count = 0
+                
+        if self.is_special_attacking:
+            animation_ended = self.current_animation.index == len(self.current_animation.frames) - 1
+            if not animation_ended:
+                self.current_animation.update(dt) 
+            
+            if animation_ended:
+                self.special_flip_timer += dt
+                if self.special_flip_timer >= self.special_flip_interval:
+                    self.facing_right = not self.facing_right
+                    self.special_flip_timer = 0
+                
+                self.wobble_timer += self.wobble_speed * (dt / 1000)
 
-        if self.is_attacking:
+            drain_amount = self.special_drain_rate * (dt / 1000)
+            self.special_meter -= drain_amount
+            
+            if self.special_meter <= 0:
+                self.special_meter = 0
+                self.is_special_attacking = False
+                self.current_animation = self.idle_animation
+                self.attack_cooldown_timer = self.special_cooldown
+
+        elif self.is_attacking:
             self.attack_active_timer += dt
             self.current_animation.update(dt) 
 
-            if self.attack_active_timer >= self.attack_duration:
+            if self.attack_type == 'light':
+                attack_duration = self.light_attack_duration
+            elif self.attack_type == 'heavy':
+                attack_duration = self.heavy_attack_duration
+            else:
+                attack_duration = 100
+
+            if self.attack_active_timer >= attack_duration:
                 
                 self.is_attacking = False
                 self.attack_active_timer = 0
-                self.current_animation = self.movement_animation
+                self.current_animation = self.idle_animation 
 
-                if self.combo_hit_count == self.max_combo_hits:
-                    self.recovery_timer = self.full_recovery_delay
-                    self.combo_reset_timer = self.full_recovery_delay 
-                    self.combo_hit_count = 0 
-                else:
-                    self.combo_reset_timer = self.combo_reset_time
+                if self.attack_type == 'heavy':
+                    self.attack_cooldown_timer = self.heavy_cooldown
+                    self.combo_hit_count = 0
+                    self.combo_reset_timer = 0
+                    
+                elif self.attack_type == 'light':
+                    if self.combo_hit_count == self.max_combo_hits:
+                        self.attack_cooldown_timer = self.light_cooldown
+                        self.combo_hit_count = 0 
+                        self.combo_reset_timer = 0
+                    else:
+                        self.combo_reset_timer = self.combo_reset_time
 
         is_moving = False
-        if not self.is_attacking:
-            move_amount = self.speed * (dt / 1000)
+        
+        current_speed = self.speed
+        
+        can_move = not self.is_attacking 
+        
+        if self.is_special_attacking:
+            current_speed *= self.special_speed_multiplier
 
+        if can_move:
+            move_amount = current_speed * (dt / 1000)
+            
             if keys[pygame.K_w] or keys[pygame.K_s] or keys[pygame.K_a] or keys[pygame.K_d]:
                 is_moving = True
 
-            if keys[pygame.K_w]:
-                self.y -= move_amount
-            if keys[pygame.K_s]:
-                self.y += move_amount
+            if keys[pygame.K_w]: self.y -= move_amount
+            if keys[pygame.K_s]: self.y += move_amount
+            
             if keys[pygame.K_a]:
                 self.x -= move_amount
-                self.facing_right = False
+                if not self.is_special_attacking: self.facing_right = False
             if keys[pygame.K_d]:
                 self.x += move_amount
-                self.facing_right = True
+                if not self.is_special_attacking: self.facing_right = True
 
-            if is_moving:
-                self.current_animation.update(dt) 
-            else:
-                if self.current_animation == self.movement_animation:
-                    self.movement_animation.index = 0
-                    self.movement_animation.timer = 0
+            if not self.is_special_attacking:
+                if is_moving:
+                    if self.current_animation != self.movement_animation:
+                        self.current_animation = self.movement_animation
+                        self.movement_animation.reset()
+                    self.current_animation.update(dt) 
+                else:
+                    if self.current_animation != self.idle_animation:
+                        self.current_animation = self.idle_animation
+                        self.idle_animation.reset()
                     
         self.x = max(boundary_rect.left, min(self.x, boundary_rect.right - self.width))
         self.y = max(boundary_rect.top, min(self.y, boundary_rect.bottom - self.height))
 
-        if self.is_attacking:
-            hitbox_y = self.y + (self.height / 2) - (self.hitbox_size[1] / 2) 
+        hitbox_y = self.y + (self.height / 2) - (self.hitbox_size[1] / 2) 
+
+        if self.is_special_attacking:
+             hitbox_left_x = self.x - self.special_hitbox_size[0] + (5 * self.scale)
+             hitbox_right_x = self.x + self.width - (5 * self.scale) 
+             
+             self.left_attack_hitbox_rect.topleft = (hitbox_left_x, hitbox_y)
+             self.right_attack_hitbox_rect.topleft = (hitbox_right_x, hitbox_y)
+             
+        elif self.is_attacking:
+            self.attack_hitbox_rect.size = (int(50 * self.scale), int(40 * self.scale))
 
             if self.facing_right:
                 hitbox_x = self.x + self.width - (5 * self.scale) 
@@ -133,18 +262,25 @@ class Penguin:
                 hitbox_x = self.x - self.hitbox_size[0] + (5 * self.scale)
 
             self.attack_hitbox_rect.topleft = (hitbox_x, hitbox_y)
-        else:
-            self.attack_hitbox_rect.topleft = (-1000, -1000)
 
 
     def draw(self, surface, debug_show_hitboxes=False):
-        """Draws the penguin and the attack hitbox (if debugging and active)."""
         image = self.current_animation.get_frame()
+        
+        draw_x = self.x
+        
+        if self.is_special_attacking:
+            offset = math.sin(self.wobble_timer * math.pi * 2) * self.wobble_amplitude
+            draw_x += offset
         
         if not self.facing_right:
             image = pygame.transform.flip(image, True, False)
-            
-        surface.blit(image, (self.x, self.y))
+
+        surface.blit(image, (draw_x, self.y))
         
-        if debug_show_hitboxes and self.is_attacking:
-            pygame.draw.rect(surface, (0, 255, 255), self.attack_hitbox_rect, 2)
+        if debug_show_hitboxes:
+            if self.is_special_attacking:
+                pygame.draw.rect(surface, (0, 255, 255), self.left_attack_hitbox_rect, 2)
+                pygame.draw.rect(surface, (0, 255, 255), self.right_attack_hitbox_rect, 2)
+            elif self.is_attacking:
+                pygame.draw.rect(surface, (0, 255, 255), self.attack_hitbox_rect, 2)

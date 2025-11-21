@@ -6,11 +6,15 @@ Play as a penguin wielding a fish and fight your way through waves of enemies to
 
 ## Controls
 **WASD** - Movement
-**J** - Basic Attack
-**K** - Heavy Attack
+**J** - Light Attack (Can cancel into itself or other attacks)
+**K** - Heavy Attack (Using Heavy attack puts every attack EXCEPT Special attacks on cooldown)
 **L** - Special attack *(requires full meter)*
 
 Build meter by dealing damage. Taking damage reduces your meter.
+
+Common combos: 
+J > J > J (Light, Light, Light)
+J > J > K (Light, Light, Heavy)
 
 ---
 

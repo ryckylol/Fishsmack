@@ -1,5 +1,6 @@
 import pygame
 from penguin import Penguin
+import os
 
 pygame.init()
 
@@ -25,10 +26,15 @@ walkable_rect = pygame.Rect(
     floor_height
 )
 
+script_dir = os.path.dirname(__file__)
+background_filename = "../Assets/background.png"
+background_full_path = os.path.abspath(os.path.join(script_dir, background_filename))
+
 try:
-    background = pygame.image.load("../Assets/background.png").convert()
+    background = pygame.image.load(background_full_path).convert()
     background = pygame.transform.scale(background, (display_W, display_H))
 except FileNotFoundError:
+    print(f"ERROR: Could not load background image: {background_full_path}. Using solid color.")
     background = pygame.Surface((display_W, display_H))
     background.fill((50, 50, 50))
 
@@ -43,20 +49,27 @@ DEBUG_SHOW_HITBOXES = True
 
 while running:
     dt = clock.tick(FPS) 
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_j:
-             penguin.start_attack()
-
+        
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_j:
+                 penguin.start_attack()
+            elif event.key == pygame.K_k:
+                 penguin.start_heavy_attack()
+            elif event.key == pygame.K_l:
+                 penguin.start_special_attack()
 
     penguin.update(dt, walkable_rect)
+
     canvas.blit(background, (0, 0))
+    
     penguin.draw(canvas, debug_show_hitboxes=DEBUG_SHOW_HITBOXES)
 
     if DEBUG_SHOW_BOUNDARIES:
         pygame.draw.rect(canvas, (255, 0, 0), walkable_rect, 2)
-
     window.blit(canvas, (0, 0))
     pygame.display.flip()
 
