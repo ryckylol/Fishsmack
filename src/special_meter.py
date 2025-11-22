@@ -20,7 +20,7 @@ class SpecialMeter:
             return
 
         frame_keys = sorted(data['frames'].keys(), 
-                            key=lambda k: int(k.split(' ')[1].split('.')[0]))
+                             key=lambda k: int(k.split(' ')[1].split('.')[0]))
         
         for key in frame_keys:
             frame_data = data['frames'][key]['frame']
@@ -30,7 +30,7 @@ class SpecialMeter:
         self.max_frame_index = len(self.frames) - 1
         self.MAX_POWER = self.max_frame_index + 1
         self.current_power = 0.0
-        self.display_frame_index = 0.0       
+        self.display_frame_index = 0.0         
         self.fill_speed_frames_per_sec = 100 
         
     def add_power(self, amount):

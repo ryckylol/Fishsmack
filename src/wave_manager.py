@@ -1,5 +1,6 @@
 import pygame
 from arctic_fox import ArcticFox
+from seal import Seal
 import random
 
 class WaveManager:
@@ -25,9 +26,46 @@ class WaveManager:
             {"type": ArcticFox, "side": "left"},
             {"type": ArcticFox, "side": "right"},
         ]
+
+        wave_2_part_1 = [
+            {"type": Seal, "side": "left"},
+            {"type": Seal, "side": "left"},
+            {"type": Seal, "side": "right"},
+            {"type": Seal, "side": "right"},
+            {"type": "wait_for_clear"},
+        ]
+
+        part_2_enemies = []
+
+        side_3_count = random.choice(["left", "right"])
+        side_2_count = "right" if side_3_count == "left" else "left"
+
+        num_seals = random.randint(1, 4) 
+        num_foxes = 5 - num_seals
         
+        all_enemies = [Seal] * num_seals + [ArcticFox] * num_foxes
+        random.shuffle(all_enemies)
+
+        side_3_enemies = []
+        side_2_enemies = []
+        
+        for i in range(5):
+            enemy_type = all_enemies[i]
+            if len(side_3_enemies) < 3:
+                side_3_enemies.append({"type": enemy_type, "side": side_3_count})
+            else:
+                side_2_enemies.append({"type": enemy_type, "side": side_2_count})
+        
+        part_2_enemies.extend(side_3_enemies)
+        part_2_enemies.extend(side_2_enemies)
+        random.shuffle(part_2_enemies)
+        
+        wave_2 = wave_2_part_1 + part_2_enemies
+
+
         self.wave_definitions = {
             1: wave_1,
+            2: wave_2,
         }
 
     def start_next_wave(self):
@@ -74,6 +112,7 @@ class WaveManager:
             self.current_wave += 1
             self.wave_complete = True
             self.wave_timer = 0
+            self.setup_waves() 
             return
             
         if self.spawn_queue:

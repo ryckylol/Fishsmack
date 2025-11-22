@@ -178,9 +178,13 @@ class ArcticFox(pygame.sprite.Sprite):
                         self.attack_rect.topleft = (hitbox_x, hitbox_y)
                 
         else: 
-            
-            other_attacker_is_present = any(other_enemy is not self and other_enemy.is_attacking for other_enemy in all_enemies)
-            
+            other_attacker_is_present = any(
+                other_enemy is not self and other_enemy.is_alive and (
+                    (hasattr(other_enemy, 'is_attacking') and other_enemy.is_attacking) or 
+                    (hasattr(other_enemy, 'is_sliding') and hasattr(other_enemy, 'is_sliding') and other_enemy.is_sliding)
+                ) for other_enemy in all_enemies
+            )
+
             move_amount = self.speed * (dt / 1000)
             is_moving = False
             
