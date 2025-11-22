@@ -14,7 +14,7 @@ class ArcticFox(pygame.sprite.Sprite):
         self.y = y
         self.base_speed = base_speed
         self.speed = base_speed * random.uniform(0.9, 1.1)         
-        self.facing_right = False        
+        self.facing_right = False         
         self.health = 30 
         self.max_health = 30
         self.total_attack_damage = 5
@@ -31,8 +31,10 @@ class ArcticFox(pygame.sprite.Sprite):
         self.is_staggered = False
         self.stagger_timer = 0
         self.stagger_duration = 300         
-        self.target_offset_y = random.uniform(-10 * scale, 10 * scale)        
-        self.cooldown_timer += random.randint(0, 1000)        
+        self.target_offset_y = random.uniform(-10 * scale, 10 * scale)         
+        self.cooldown_timer += random.randint(0, 1000)
+        self.has_entered_boundary = False         
+        
         self.walk_sheet = Spritesheet("../Assets/Sheets/arcticFox_walkCycle_Sheet.png", scale) 
         self.swing_sheet = Spritesheet("../Assets/Sheets/arcticFox_swing_Sheet.png", scale) 
         
@@ -51,9 +53,9 @@ class ArcticFox(pygame.sprite.Sprite):
         
         self.attack_animation = Animation(self.swing_sheet, swing_frame_data, frame_duration=150)
         self.attack_duration = len(swing_frame_data) * 150
-        self.current_animation = self.idle_animation        
+        self.current_animation = self.idle_animation         
         self.width = 64 * scale
-        self.height = 64 * scale        
+        self.height = 64 * scale         
         self.separation_radius = max(self.width, self.height) * 0.5 
         self.hitbox_rect = pygame.Rect(0, 0, int(50 * scale), int(40 * scale))
         self.attack_hitbox_size = (int(50 * scale), int(45 * scale))
@@ -221,10 +223,16 @@ class ArcticFox(pygame.sprite.Sprite):
                     self.idle_animation.reset()
             
             self.current_animation.update(dt)
-        
-        self.x = max(boundary_rect.left, min(self.x, boundary_rect.right - self.width))
-        self.y = max(boundary_rect.top, min(self.y, boundary_rect.bottom - self.height))
-        self.hitbox_rect.center = (fox_center_x, self.y + self.height / 2)
+
+        fox_rect = pygame.Rect(self.x, self.y, self.width, self.height)
+        if not self.has_entered_boundary and boundary_rect.contains(fox_rect):
+            self.has_entered_boundary = True
+
+        if self.has_entered_boundary:
+            self.x = max(boundary_rect.left, min(self.x, boundary_rect.right - self.width))
+            self.y = max(boundary_rect.top, min(self.y, boundary_rect.bottom - self.height))
+
+        self.hitbox_rect.center = (self.x + self.width / 2, self.y + self.height / 2)
 
 
     def draw(self, surface, debug_show_hitboxes=False):
