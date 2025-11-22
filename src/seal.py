@@ -55,8 +55,6 @@ class Seal(pygame.sprite.Sprite):
         self.height = 64 * scale 
         
         self.hitbox_rect = pygame.Rect(0, 0, int(50 * scale), int(40 * scale)) 
-        
-        # Made slightly shorter (height 30 instead of 40)
         self.slide_attack_size = (int(50 * scale), int(30 * scale))
         self.slide_attack_rect = pygame.Rect(0, 0, *self.slide_attack_size)
         
@@ -85,7 +83,6 @@ class Seal(pygame.sprite.Sprite):
         self.slide_animation.reset()
         
         self.attack_rect = self.slide_attack_rect
-        # Slide Damage: 50% of base (10 * 0.5 = 5 damage)
         self.current_damage = self.total_attack_damage * 0.5
         self.slide_speed = self.base_speed * self.slide_max_speed_multiplier
         self.hits_landed = 0
@@ -128,7 +125,6 @@ class Seal(pygame.sprite.Sprite):
         self.current_animation = self.slap_animation
         self.slap_animation.reset()
         self.attack_rect = self.slap_attack_rect
-        # Slap Damage: Very low, 10% of base (10 * 0.1 = 1 damage)
         self.current_damage = self.total_attack_damage * 0.1
         return True
 
@@ -224,16 +220,14 @@ class Seal(pygame.sprite.Sprite):
             else:
                 self.x -= slide_velocity
 
-            # Update Hitbox Position based on new X/Y first
             self.hitbox_rect.center = (self.x + self.width / 2, self.y + self.height / 2)
             
             if self.facing_right:
                 slide_x = self.hitbox_rect.right - int(10 * self.scale)
             else:
                 slide_x = self.hitbox_rect.left - self.slide_attack_rect.width + int(10 * self.scale)
-            
-            # Align to correct X and then align vertically to the center of the collision box
-            self.slide_attack_rect.topleft = (slide_x, 0) # Temp Y
+
+            self.slide_attack_rect.topleft = (slide_x, 0)
             self.slide_attack_rect.centery = self.hitbox_rect.centery
             
             self.attack_rect = pygame.Rect(self.slide_attack_rect.x, self.slide_attack_rect.y, self.slide_attack_rect.width, self.slide_attack_rect.height)
@@ -260,7 +254,7 @@ class Seal(pygame.sprite.Sprite):
             self.y = self.hop_start_y + y_delta * t
 
             self.separate(all_enemies, dt)
-            # Update hitbox during jump
+
             self.hitbox_rect.center = (self.x + self.width / 2, self.y + self.height / 2)
 
             if self.jump_timer >= self.jump_duration:
@@ -271,8 +265,7 @@ class Seal(pygame.sprite.Sprite):
         elif self.is_attacking:
             self.current_animation.update(dt)
             current_frame = self.current_animation.index
-            
-            # Update hitbox for collisions
+
             self.hitbox_rect.center = (self.x + self.width / 2, self.y + self.height / 2)
 
             if current_frame in self.hit_frames:
@@ -284,8 +277,7 @@ class Seal(pygame.sprite.Sprite):
                     hitbox_x = self.x - self.slap_attack_size[0] + (10 * self.scale) 
                 
                 self.slap_attack_rect.topleft = (hitbox_x, hitbox_y)
-                
-                # Initiate the hit window
+
                 if self.hits_landed == 0:
                     self.hits_landed = 1
             else:
@@ -344,7 +336,6 @@ class Seal(pygame.sprite.Sprite):
             if not self.is_attacking and not self.is_sliding and not self.is_jumping_to_align:
                 self.current_animation = self.idle_animation
                 self.current_animation.update(dt)
-                # Update hitbox in idle/moving
                 self.hitbox_rect.center = (self.x + self.width / 2, self.y + self.height / 2)
 
         if self.has_entered_boundary:
@@ -354,8 +345,7 @@ class Seal(pygame.sprite.Sprite):
             seal_rect = pygame.Rect(self.x, self.y, self.width, self.height)
             if boundary_rect.contains(seal_rect):
                 self.has_entered_boundary = True
-        
-        # Final Safety Update for hitbox position
+
         self.hitbox_rect.center = (self.x + self.width / 2, self.y + self.height / 2)
 
     def draw(self, surface, debug_show_hitboxes=False):
