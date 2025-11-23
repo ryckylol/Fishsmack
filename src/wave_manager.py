@@ -2,6 +2,7 @@ import pygame
 from arctic_fox import ArcticFox
 from seal import Seal
 from giant_petrel import GiantPetrel
+from polar_bear import PolarBear 
 import random
 
 class WaveManager:
@@ -19,7 +20,6 @@ class WaveManager:
         self.setup_waves()
 
     def setup_waves(self):
-
         wave_1 = [
             {"type": ArcticFox, "side": "right"},
             {"type": ArcticFox, "side": "right"},
@@ -37,7 +37,6 @@ class WaveManager:
             {"type": Seal, "side": "right"},
             {"type": "wait_for_clear"},
         ]
-
 
         part_2_enemies = []
         side_3_count = random.choice(["left", "right"])
@@ -67,7 +66,6 @@ class WaveManager:
         wave_3_part_2 = []
         side_major = random.choice(["left", "right"])
         side_minor = "right" if side_major == "left" else "left"
-
         pool_w3 = [GiantPetrel, Seal] 
         for _ in range(3): pool_w3.append(random.choice([GiantPetrel, Seal]))
         random.shuffle(pool_w3)
@@ -76,24 +74,36 @@ class WaveManager:
             enemy_type = pool_w3[i]
             side = side_major if i < 3 else side_minor
             wave_3_part_2.append({"type": enemy_type, "side": side})
-            
         wave_3 = wave_3_part_1 + wave_3_part_2
+
+        wave_4 = [
+            {"type": PolarBear, "side": "center"}
+        ]
 
         self.wave_definitions = {
             1: wave_1,
             2: wave_2,
-            3: wave_3
+            3: wave_3,
+            4: wave_4 
         }
 
     def start_next_wave(self):
         if self.current_wave in self.wave_definitions:
             self.spawn_queue = list(self.wave_definitions[self.current_wave])
             self.wave_complete = False
+            print(f"Starting Wave {self.current_wave}")
         else:
             self.wave_complete = True
             print("All Waves Complete!")
 
     def spawn_enemy(self, enemy_type, side):
+        if enemy_type == PolarBear:
+            spawn_x = self.boundary_rect.centerx - (64 * self.scale)
+            spawn_y = -500 
+            enemy = enemy_type(scale=self.scale, x=spawn_x, y=spawn_y)
+            self.enemies.add(enemy)
+            return
+
         enemy_width = 64 * self.scale
         enemy_height = 64 * self.scale
         spawn_y_min = self.boundary_rect.top
@@ -113,7 +123,7 @@ class WaveManager:
         all_enemies_list = self.enemies.sprites()
 
         for enemy in list(self.enemies):
-            if isinstance(enemy, GiantPetrel):
+            if isinstance(enemy, GiantPetrel) or isinstance(enemy, PolarBear):
                 enemy.update(dt, target_x, target_y, self.boundary_rect, all_enemies_list, self.projectiles)
             else:
                 enemy.update(dt, target_x, target_y, self.boundary_rect, all_enemies_list)
@@ -153,7 +163,7 @@ class WaveManager:
                 self.spawn_queue.pop(0)
 
     def draw(self, surface, debug_show_hitboxes):
-        for enemy in sorted(self.enemies, key=lambda e: e.y):
+        for enemy in sorted(self.enemies, key=lambda e: e.y + e.height):
             enemy.draw(surface, debug_show_hitboxes)
 
         for proj in self.projectiles:

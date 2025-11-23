@@ -1,8 +1,10 @@
 import pygame
+import random
 from penguin import Penguin
 from arctic_fox import ArcticFox
 from seal import Seal
 from giant_petrel import GiantPetrel
+from polar_bear import PolarBear
 from wave_manager import WaveManager
 from healthbar import HealthBar 
 from special_meter import SpecialMeter
@@ -61,32 +63,85 @@ DEBUG_SHOW_HITBOXES = True
 
 prev_is_special_attacking = False
 
+shake_offset = [0, 0]
+shake_intensity = 0
+
 while running:
     dt = clock.tick(FPS)
+    shake_offset = [0, 0]
+    shake_intensity = 0
 
     health_bar.set_target_health(penguin.health, penguin.max_health)
     health_bar.update(dt)
     special_meter.update(dt)
 
+    cutscene_active = False
+
+    polar_bear = next((e for e in wave_manager.enemies if isinstance(e, PolarBear)), None)
+    if polar_bear and polar_bear.current_state == polar_bear.STATE_FALLING:
+        cutscene_active = True
+    
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_j:
-                penguin.start_attack()
-            elif event.key == pygame.K_k:
-                penguin.start_heavy_attack()
-            elif event.key == pygame.K_l:
-                penguin.start_special_attack()
+
+        if not cutscene_active:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_j:
+                    penguin.start_attack()
+                elif event.key == pygame.K_k:
+                    penguin.start_heavy_attack()
+                elif event.key == pygame.K_l:
+                    penguin.start_special_attack()
 
     target_x = penguin.x + penguin.width / 2
     target_y = penguin.y + penguin.height / 2
     
     prev_is_special_attacking = penguin.is_special_attacking
-    
-    penguin.update(dt, walkable_rect)
+
+    if cutscene_active:
+
+        dist_to_left = abs(penguin.x - walkable_rect.left)
+        dist_to_right = abs(penguin.x + penguin.width - walkable_rect.right)
+        
+        target_edge_x = walkable_rect.left if dist_to_left < dist_to_right else walkable_rect.right - penguin.width
+
+        speed = penguin.speed * (dt / 1000)
+        if abs(penguin.x - target_edge_x) > 5:
+            if penguin.x < target_edge_x:
+                penguin.x += speed
+                penguin.facing_right = True
+            else:
+                penguin.x -= speed
+                penguin.facing_right = False
+
+            if penguin.current_animation != penguin.movement_animation:
+                penguin.current_animation = penguin.movement_animation
+                penguin.movement_animation.reset()
+            penguin.current_animation.update(dt)
+        else:
+            if penguin.current_animation != penguin.idle_animation:
+                penguin.current_animation = penguin.idle_animation
+                penguin.idle_animation.reset()
+            penguin.current_animation.update(dt)
+
+        penguin.hitbox_size = (int(50 * penguin.scale), int(40 * penguin.scale)) 
+        hitbox_y = penguin.y + (penguin.height / 2) - (penguin.hitbox_size[1] / 2) 
+        hitbox_x = penguin.x + penguin.width - (5 * penguin.scale) if penguin.facing_right else penguin.x - penguin.hitbox_size[0] + (5 * penguin.scale)
+        penguin.attack_hitbox_rect.topleft = (-1000, -1000)
+
+        penguin.x = max(walkable_rect.left, min(penguin.x, walkable_rect.right - penguin.width))
+        
+    else:
+        penguin.update(dt, walkable_rect)
+
     wave_manager.update(dt, target_x, target_y)
+
+    for enemy in wave_manager.enemies:
+        if isinstance(enemy, PolarBear) and enemy.is_roaring:
+            shake_intensity = 10
+            shake_offset[0] = random.randint(-shake_intensity, shake_intensity)
+            shake_offset[1] = random.randint(-shake_intensity, shake_intensity)
 
     if prev_is_special_attacking and not penguin.is_special_attacking:
         penguin.external_special_meter.reset_power()
@@ -131,7 +186,7 @@ while running:
                 if hit_number > enemy.hits_landed:
                     enemy.hits_landed = hit_number
                     should_hit = True
-                    damage_taken = enemy.damage_per_hit
+                    damage_taken = enemy.damage_per_hit 
 
         elif isinstance(enemy, Seal):
             if enemy.is_sliding and enemy.slide_timer >= enemy.slide_buildup_duration:
@@ -139,23 +194,29 @@ while running:
                     if enemy.hits_landed == 0:
                         should_hit = True
                         enemy.hits_landed = 1
-                        damage_taken = enemy.current_damage
+                        damage_taken = enemy.current_damage 
             elif enemy.is_attacking and enemy.attack_rect.colliderect(penguin_hitbox):
                 if enemy.hits_landed == 0:
                     should_hit = True
                     enemy.hits_landed = 1
-                    damage_taken = enemy.current_damage
+                    damage_taken = enemy.current_damage 
 
         elif isinstance(enemy, GiantPetrel):
             if enemy.is_attacking and enemy.current_attack == 'peck' and enemy.attack_rect.colliderect(penguin_hitbox):
                 if enemy.hits_landed == 0:
                     should_hit = True
                     enemy.hits_landed = 1
-                    damage_taken = enemy.peck_damage
+                    damage_taken = enemy.peck_damage 
+
+        elif isinstance(enemy, PolarBear) and enemy.current_state == enemy.STATE_FIGHTING:
+             if enemy.hitbox_rect.colliderect(penguin_hitbox):
+                 damage_taken = 0
+                 should_hit = False 
 
         if should_hit:
             penguin.take_damage(damage_taken)
-            penguin.external_special_meter.subtract_power(damage_taken * 0.2)
+            if damage_taken > 0:
+                penguin.external_special_meter.subtract_power(damage_taken * 0.2)
 
     canvas.blit(background, (0, 0))
     
@@ -177,7 +238,7 @@ while running:
     if DEBUG_SHOW_HITBOXES:
         pygame.draw.rect(canvas, (255, 255, 0), penguin_hitbox, 2)
 
-    window.blit(canvas, (0, 0))
+    window.blit(canvas, shake_offset)
     pygame.display.flip()
 
 pygame.quit()
