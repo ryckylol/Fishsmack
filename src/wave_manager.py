@@ -1,6 +1,7 @@
 import pygame
 from arctic_fox import ArcticFox
 from seal import Seal
+from giant_petrel import GiantPetrel
 import random
 
 class WaveManager:
@@ -9,6 +10,7 @@ class WaveManager:
         self.boundary_rect = boundary_rect
         self.current_wave = 1
         self.enemies = pygame.sprite.Group()
+        self.projectiles = pygame.sprite.Group()
         self.spawn_queue = []
         self.max_enemies_on_screen = 5
         self.wave_complete = True
@@ -17,6 +19,7 @@ class WaveManager:
         self.setup_waves()
 
     def setup_waves(self):
+
         wave_1 = [
             {"type": ArcticFox, "side": "right"},
             {"type": ArcticFox, "side": "right"},
@@ -35,37 +38,51 @@ class WaveManager:
             {"type": "wait_for_clear"},
         ]
 
-        part_2_enemies = []
 
+        part_2_enemies = []
         side_3_count = random.choice(["left", "right"])
         side_2_count = "right" if side_3_count == "left" else "left"
-
         num_seals = random.randint(1, 4) 
         num_foxes = 5 - num_seals
-        
-        all_enemies = [Seal] * num_seals + [ArcticFox] * num_foxes
-        random.shuffle(all_enemies)
-
-        side_3_enemies = []
-        side_2_enemies = []
+        all_enemies_w2 = [Seal] * num_seals + [ArcticFox] * num_foxes
+        random.shuffle(all_enemies_w2)
         
         for i in range(5):
-            enemy_type = all_enemies[i]
-            if len(side_3_enemies) < 3:
-                side_3_enemies.append({"type": enemy_type, "side": side_3_count})
-            else:
-                side_2_enemies.append({"type": enemy_type, "side": side_2_count})
-        
-        part_2_enemies.extend(side_3_enemies)
-        part_2_enemies.extend(side_2_enemies)
+            enemy_type = all_enemies_w2[i]
+            side = side_3_count if i < 3 else side_2_count
+            part_2_enemies.append({"type": enemy_type, "side": side})
         random.shuffle(part_2_enemies)
-        
         wave_2 = wave_2_part_1 + part_2_enemies
 
+        main_side = random.choice(["left", "right"])
+        opp_side = "right" if main_side == "left" else "left"
+        
+        wave_3_part_1 = [
+            {"type": GiantPetrel, "side": main_side},
+            {"type": GiantPetrel, "side": opp_side},
+            {"type": GiantPetrel, "side": opp_side},
+            {"type": "wait_for_clear"}
+        ]
+
+        wave_3_part_2 = []
+        side_major = random.choice(["left", "right"])
+        side_minor = "right" if side_major == "left" else "left"
+
+        pool_w3 = [GiantPetrel, Seal] 
+        for _ in range(3): pool_w3.append(random.choice([GiantPetrel, Seal]))
+        random.shuffle(pool_w3)
+        
+        for i in range(5):
+            enemy_type = pool_w3[i]
+            side = side_major if i < 3 else side_minor
+            wave_3_part_2.append({"type": enemy_type, "side": side})
+            
+        wave_3 = wave_3_part_1 + wave_3_part_2
 
         self.wave_definitions = {
             1: wave_1,
             2: wave_2,
+            3: wave_3
         }
 
     def start_next_wave(self):
@@ -74,6 +91,7 @@ class WaveManager:
             self.wave_complete = False
         else:
             self.wave_complete = True
+            print("All Waves Complete!")
 
     def spawn_enemy(self, enemy_type, side):
         enemy_width = 64 * self.scale
@@ -91,16 +109,20 @@ class WaveManager:
         enemy.facing_right = (side == "left") 
         self.enemies.add(enemy)
 
-
     def update(self, dt, target_x, target_y):
-        
         all_enemies_list = self.enemies.sprites()
 
         for enemy in list(self.enemies):
-            enemy.update(dt, target_x, target_y, self.boundary_rect, all_enemies_list) 
+            if isinstance(enemy, GiantPetrel):
+                enemy.update(dt, target_x, target_y, self.boundary_rect, all_enemies_list, self.projectiles)
+            else:
+                enemy.update(dt, target_x, target_y, self.boundary_rect, all_enemies_list)
+                
             if not enemy.is_alive:
                 self.enemies.remove(enemy)
-                
+
+        self.projectiles.update(dt)
+
         if self.wave_complete and self.current_wave in self.wave_definitions:
             self.wave_timer += dt
             if self.wave_timer >= self.wave_start_delay:
@@ -131,5 +153,10 @@ class WaveManager:
                 self.spawn_queue.pop(0)
 
     def draw(self, surface, debug_show_hitboxes):
-        for enemy in self.enemies:
+        for enemy in sorted(self.enemies, key=lambda e: e.y):
             enemy.draw(surface, debug_show_hitboxes)
+
+        for proj in self.projectiles:
+            surface.blit(proj.image, proj.rect)
+            if debug_show_hitboxes:
+                pygame.draw.rect(surface, (0, 255, 255), proj.hitbox_rect, 2)

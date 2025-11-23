@@ -2,6 +2,7 @@ import pygame
 from penguin import Penguin
 from arctic_fox import ArcticFox
 from seal import Seal
+from giant_petrel import GiantPetrel
 from wave_manager import WaveManager
 from healthbar import HealthBar 
 from special_meter import SpecialMeter
@@ -58,7 +59,6 @@ running = True
 DEBUG_SHOW_BOUNDARIES = True
 DEBUG_SHOW_HITBOXES = True
 
-is_enemy_attacking_flag = False
 prev_is_special_attacking = False
 
 while running:
@@ -93,24 +93,6 @@ while running:
 
     penguin_hitbox = pygame.Rect(penguin.x, penguin.y, penguin.width, penguin.height)
 
-    is_enemy_attacking_flag = any(
-        (enemy.is_attacking or (hasattr(enemy, 'is_sliding') and enemy.is_sliding))
-        for enemy in wave_manager.enemies if enemy.is_alive
-    )
-
-    for enemy in list(wave_manager.enemies):
-        enemy_center_x = enemy.x + enemy.width / 2
-        penguin_center_x = penguin.x + penguin.width / 2
-        
-        distance_to_player = math.sqrt((enemy_center_x - penguin_center_x)**2 + (enemy.y - penguin.y)**2)
-
-        if isinstance(enemy, ArcticFox):
-            if not is_enemy_attacking_flag and not enemy.is_attacking and enemy.cooldown_timer <= 0 and distance_to_player <= enemy.attack_range:
-                target_is_right_of_fox = (penguin_center_x > enemy_center_x)
-                if enemy.start_attack(target_is_right_of_fox):
-                    is_enemy_attacking_flag = True
-                    break
-
     if penguin.current_attack_damage > 0:
         active_hitboxes = []
         if penguin.is_attacking:
@@ -127,23 +109,21 @@ while running:
                         enemy.take_damage(damage_dealt)
                         if not penguin.is_special_attacking:
                             penguin.external_special_meter.add_power(damage_dealt * 0.5)
-                        if not penguin.is_special_attacking:
                             penguin.enemies_hit_in_attack.add(enemy)
 
-    for enemy in list(wave_manager.enemies):
-        is_enemy_attacking = enemy.is_attacking or (hasattr(enemy, 'is_sliding') and enemy.is_sliding)
-        
-        if is_enemy_attacking and enemy.attack_rect.colliderect(penguin_hitbox):
-            should_hit = False
-            
-            if isinstance(enemy, Seal):
-                if enemy.is_sliding and enemy.slide_timer >= enemy.slide_buildup_duration:
-                    if enemy.hits_landed == 0:
-                        should_hit = True
-                elif enemy.is_attacking and enemy.hits_landed == 1:
-                    should_hit = True
+    for proj in list(wave_manager.projectiles):
+        if proj.hitbox_rect.colliderect(penguin_hitbox):
+            penguin.take_damage(proj.damage)
+            penguin.external_special_meter.subtract_power(proj.damage * 0.2)
+            proj.kill()
+            GiantPetrel.decrement_wind_counter()
 
-            elif isinstance(enemy, ArcticFox):
+    for enemy in list(wave_manager.enemies):
+        should_hit = False
+        damage_taken = 0
+
+        if isinstance(enemy, ArcticFox):
+            if enemy.is_attacking and enemy.attack_rect.colliderect(penguin_hitbox):
                 current_frame_index = enemy.current_animation.index
                 hit_number = 0
                 if current_frame_index in enemy.hit_frames:
@@ -151,15 +131,31 @@ while running:
                 if hit_number > enemy.hits_landed:
                     enemy.hits_landed = hit_number
                     should_hit = True
+                    damage_taken = enemy.damage_per_hit
 
-            if should_hit:
-                damage_taken = enemy.current_damage if hasattr(enemy, 'current_damage') and enemy.current_damage > 0 else enemy.damage_per_hit
-                penguin.take_damage(damage_taken)
-                penguin.external_special_meter.subtract_power(damage_taken * 0.2)
-                if isinstance(enemy, Seal) and enemy.is_sliding:
+        elif isinstance(enemy, Seal):
+            if enemy.is_sliding and enemy.slide_timer >= enemy.slide_buildup_duration:
+                if enemy.attack_rect.colliderect(penguin_hitbox):
+                    if enemy.hits_landed == 0:
+                        should_hit = True
+                        enemy.hits_landed = 1
+                        damage_taken = enemy.current_damage
+            elif enemy.is_attacking and enemy.attack_rect.colliderect(penguin_hitbox):
+                if enemy.hits_landed == 0:
+                    should_hit = True
                     enemy.hits_landed = 1
-                if isinstance(enemy, Seal) and enemy.is_attacking and not enemy.is_sliding:
-                    enemy.hits_landed = 0
+                    damage_taken = enemy.current_damage
+
+        elif isinstance(enemy, GiantPetrel):
+            if enemy.is_attacking and enemy.current_attack == 'peck' and enemy.attack_rect.colliderect(penguin_hitbox):
+                if enemy.hits_landed == 0:
+                    should_hit = True
+                    enemy.hits_landed = 1
+                    damage_taken = enemy.peck_damage
+
+        if should_hit:
+            penguin.take_damage(damage_taken)
+            penguin.external_special_meter.subtract_power(damage_taken * 0.2)
 
     canvas.blit(background, (0, 0))
     
