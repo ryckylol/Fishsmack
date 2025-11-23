@@ -17,7 +17,7 @@ class Seal(pygame.sprite.Sprite):
         self.facing_right = False 
         self.health = 50 
         self.max_health = 50
-        self.total_attack_damage = 10 
+        self.total_attack_damage = 25
         self.damage_per_hit = self.total_attack_damage
         self.attack_range = 70 * scale
         self.slide_range = 500 * scale
@@ -49,7 +49,7 @@ class Seal(pygame.sprite.Sprite):
         
         slap_frame_data = [(0, 0, 64, 64), (64, 0, 64, 64), (128, 0, 64, 64), (192, 0, 64, 64)]
         self.slap_animation = Animation(self.slap_sheet, slap_frame_data, frame_duration=100)
-        self.slap_duration = len(slap_frame_data) * 100         
+        self.slap_duration = len(slap_frame_data) * 100 
         self.current_animation = self.idle_animation 
         self.width = 64 * scale
         self.height = 64 * scale 
@@ -63,10 +63,10 @@ class Seal(pygame.sprite.Sprite):
         self.attack_rect = self.slide_attack_rect
         self.slide_buildup_duration = 300
         self.slide_timer = 0
-        self.slide_max_speed_multiplier = 3.0      
+        self.slide_max_speed_multiplier = 3.0 
         self.jump_velocity = -400 * self.scale
         self.initial_y = 0
-        self.jump_timer = 0         
+        self.jump_timer = 0 
         self.hop_start_x = 0
         self.hop_start_y = 0
         self.hop_end_x = 0
@@ -277,9 +277,7 @@ class Seal(pygame.sprite.Sprite):
                     hitbox_x = self.x - self.slap_attack_size[0] + (10 * self.scale) 
                 
                 self.slap_attack_rect.topleft = (hitbox_x, hitbox_y)
-
-                if self.hits_landed == 0:
-                    self.hits_landed = 1
+                
             else:
                 self.slap_attack_rect.topleft = (-1000, -1000)
                 
@@ -339,8 +337,8 @@ class Seal(pygame.sprite.Sprite):
                 self.hitbox_rect.center = (self.x + self.width / 2, self.y + self.height / 2)
 
         if self.has_entered_boundary:
-             self.x = max(boundary_rect.left, min(self.x, boundary_rect.right - self.width))
-             self.y = max(boundary_rect.top, min(self.y, boundary_rect.bottom - self.height))
+            self.x = max(boundary_rect.left, min(self.x, boundary_rect.right - self.width))
+            self.y = max(boundary_rect.top, min(self.y, boundary_rect.bottom - self.height))
         else:
             seal_rect = pygame.Rect(self.x, self.y, self.width, self.height)
             if boundary_rect.contains(seal_rect):
