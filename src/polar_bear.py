@@ -105,7 +105,7 @@ class PolarBear(pygame.sprite.Sprite):
         self.speed = 250 * self.scale
         self.run_speed = 100 * self.scale
 
-        self.max_health = 2500
+        self.max_health = 2250
         self.health = self.max_health
         self.is_alive = True
 
