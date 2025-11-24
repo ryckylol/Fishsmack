@@ -4,6 +4,7 @@ from seal import Seal
 from giant_petrel import GiantPetrel
 from polar_bear import PolarBear 
 import random
+import sys
 
 class WaveManager:
     def __init__(self, scale, boundary_rect, penguin, special_meter):
@@ -19,6 +20,8 @@ class WaveManager:
         self.wave_complete = True
         self.wave_start_delay = 2000
         self.wave_timer = 0
+        self.game_close_timer = 0
+        self.close_game_delay = 5000
         self.setup_waves()
 
     def setup_waves(self):
@@ -82,49 +85,66 @@ class WaveManager:
             {"type": PolarBear, "side": "center"}
         ]
 
+        wave_5 = [
+            {"type": "end_game"}
+        ]
+
         self.wave_definitions = {
             1: wave_1,
             2: wave_2,
             3: wave_3,
-            4: wave_4 
+            4: wave_4,
+            5: wave_5
         }
 
     def start_next_wave(self):
         if self.current_wave in self.wave_definitions:
             self.spawn_queue = list(self.wave_definitions[self.current_wave])
             self.wave_complete = False
-            print(f"Starting Wave {self.current_wave}")
             if self.current_wave == 4:
                 self.penguin.health = self.penguin.max_health
                 self.special_meter.reset_power()
+            if self.current_wave == 5:
+                self.game_close_timer = 0
         else:
             self.wave_complete = True
-            print("All Waves Complete!")
 
     def spawn_enemy(self, enemy_type, side):
+        if enemy_type == "end_game":
+            return
         if enemy_type == PolarBear:
             spawn_x = self.boundary_rect.centerx - (64 * self.scale)
             spawn_y = -500 
             enemy = enemy_type(scale=self.scale, x=spawn_x, y=spawn_y)
             self.enemies.add(enemy)
             return
-
         enemy_width = 64 * self.scale
         enemy_height = 64 * self.scale
         spawn_y_min = self.boundary_rect.top
         spawn_y_max = self.boundary_rect.bottom - enemy_height
         spawn_y = random.uniform(spawn_y_min, spawn_y_max)
-        
         if side == "right":
             spawn_x = self.boundary_rect.right 
         else:
             spawn_x = self.boundary_rect.left - enemy_width 
-
         enemy = enemy_type(scale=self.scale, x=spawn_x, y=spawn_y)
         enemy.facing_right = (side == "left") 
         self.enemies.add(enemy)
 
     def update(self, dt, target_x, target_y):
+        if not self.penguin.is_alive and self.current_wave != 5:
+            self.current_wave = 5
+            self.spawn_queue = [{"type":"end_game"}]
+            self.wave_complete = False
+            self.game_close_timer = 0
+
+        if self.current_wave == 5:
+            self.game_close_timer += dt
+            if self.game_close_timer >= self.close_game_delay:
+                pygame.quit()
+                sys.exit()
+            return
+
         all_enemies_list = self.enemies.sprites()
 
         for enemy in list(self.enemies):
@@ -132,7 +152,6 @@ class WaveManager:
                 enemy.update(dt, target_x, target_y, self.boundary_rect, all_enemies_list, self.projectiles)
             else:
                 enemy.update(dt, target_x, target_y, self.boundary_rect, all_enemies_list)
-                
             if not enemy.is_alive:
                 self.enemies.remove(enemy)
 
@@ -154,13 +173,16 @@ class WaveManager:
             
         if self.spawn_queue:
             next_spawn = self.spawn_queue[0]
-            
             if next_spawn["type"] == "wait_for_clear":
                 if not self.enemies:
                     self.spawn_queue.pop(0)
                 else:
                     return
-                    
+            elif next_spawn["type"] == "end_game":
+                self.spawn_queue.pop(0)
+                self.current_wave = 5
+                self.game_close_timer = 0
+                return
             elif len(self.enemies) < self.max_enemies_on_screen:
                 enemy_type = next_spawn["type"]
                 side = next_spawn["side"]
@@ -170,7 +192,6 @@ class WaveManager:
     def draw(self, surface, debug_show_hitboxes):
         for enemy in sorted(self.enemies, key=lambda e: e.y + e.height):
             enemy.draw(surface, debug_show_hitboxes)
-
         for proj in self.projectiles:
             surface.blit(proj.image, proj.rect)
             if debug_show_hitboxes:

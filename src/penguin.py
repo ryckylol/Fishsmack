@@ -4,7 +4,7 @@ from animation import Animation
 import math
 
 class Penguin:
-    MAX_HEALTH = 140
+    MAX_HEALTH = 150
     MAX_SPECIAL_FUEL = 100
     SPECIAL_SOUND_INTERVAL = 85
 
@@ -54,7 +54,7 @@ class Penguin:
         self.sprite_width = 64 * scale
         self.sprite_height = 64 * scale
         self.width = 25 * scale
-        self.height = 25 * scale
+        self.height = 45 * scale
         self.hurtbox_offset_x = (self.sprite_width - 25 * scale) / 2
         self.hurtbox_offset_y = (self.sprite_height - 25 * scale) / 2
         self.hurtbox = pygame.Rect(self.x, self.y, 50 * scale, 40 * scale)

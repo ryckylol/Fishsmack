@@ -127,8 +127,8 @@ class PolarBear(pygame.sprite.Sprite):
         self.attack_cooldown = 4500
         self.current_attack_type = None
 
-        self.SWING_DAMAGE = 15
-        self.SLAM_DAMAGE = 25
+        self.SWING_DAMAGE = 3
+        self.SLAM_DAMAGE = 5
 
         self.ATTACK_SWING = "swing"
         self.ATTACK_SLAM = "slam"
