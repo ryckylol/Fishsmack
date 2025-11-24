@@ -6,9 +6,11 @@ from polar_bear import PolarBear
 import random
 
 class WaveManager:
-    def __init__(self, scale, boundary_rect):
+    def __init__(self, scale, boundary_rect, penguin, special_meter):
         self.scale = scale
         self.boundary_rect = boundary_rect
+        self.penguin = penguin
+        self.special_meter = special_meter
         self.current_wave = 1
         self.enemies = pygame.sprite.Group()
         self.projectiles = pygame.sprite.Group()
@@ -16,7 +18,7 @@ class WaveManager:
         self.max_enemies_on_screen = 5
         self.wave_complete = True
         self.wave_start_delay = 2000
-        self.wave_timer = 0        
+        self.wave_timer = 0
         self.setup_waves()
 
     def setup_waves(self):
@@ -92,6 +94,9 @@ class WaveManager:
             self.spawn_queue = list(self.wave_definitions[self.current_wave])
             self.wave_complete = False
             print(f"Starting Wave {self.current_wave}")
+            if self.current_wave == 4:
+                self.penguin.health = self.penguin.max_health
+                self.special_meter.reset_power()
         else:
             self.wave_complete = True
             print("All Waves Complete!")

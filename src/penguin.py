@@ -61,15 +61,13 @@ class Penguin:
         self.right_attack_hitbox_rect = pygame.Rect(0, 0, *self.special_hitbox_size) 
         self.current_animation = self.idle_animation 
         self.x = 0
-        self.y = 0
-        
+        self.y = 0        
         self.sprite_width = 64 * scale
         self.sprite_height = 64 * scale
         self.width = 40 * scale
         self.height = 40 * scale
         self.hurtbox_offset_x = (self.sprite_width - self.width) / 2
-        self.hurtbox_offset_y = (self.sprite_height - self.height) / 2
-        
+        self.hurtbox_offset_y = (self.sprite_height - self.height) / 2        
         self.speed = 300
         self.facing_right = True 
         self.max_health = self.MAX_HEALTH
@@ -88,15 +86,14 @@ class Penguin:
         self.light_cooldown = 300
         self.heavy_cooldown = 500
         self.special_cooldown = 300
-        self.attack_cooldown_timer = 0
-        
+        self.attack_cooldown_timer = 0        
         self.hitbox_size = (int(50 * scale), int(40 * scale)) 
         self.attack_hitbox_rect = pygame.Rect(0, 0, *self.hitbox_size)
         self.attack_hitbox_rect.topleft = (-1000, -1000)
-
         self.damage_flash_timer = 0
         self.damage_flash_duration = 150
         self.flash_color = (255, 100, 100)
+        self.hurtbox = pygame.Rect(self.x, self.y, self.width, self.height)
 
     def set_special_meter(self, meter_ref):
         self.external_special_meter = meter_ref
@@ -170,7 +167,7 @@ class Penguin:
         self.wobble_timer = 0 
         self.special_meter = self.MAX_SPECIAL_FUEL 
         
-    def update(self, dt, boundary_rect):
+    def update(self, dt, boundary_rect, enemy_hitbox: pygame.Rect):
         keys = pygame.key.get_pressed()
         if self.damage_flash_timer > 0:
             self.damage_flash_timer -= dt
@@ -254,6 +251,9 @@ class Penguin:
         if self.is_special_attacking:
             current_speed *= self.special_speed_multiplier
 
+        original_x = self.x
+        original_y = self.y
+
         if can_move:
             move_amount = current_speed * (dt / 1000)
             
@@ -280,9 +280,33 @@ class Penguin:
                     if self.current_animation != self.idle_animation:
                         self.current_animation = self.idle_animation
                         self.idle_animation.reset()
-                        
+
+        self.hurtbox.topleft = (self.x, self.y)
+
         self.x = max(boundary_rect.left, min(self.x, boundary_rect.right - self.width))
         self.y = max(boundary_rect.top, min(self.y, boundary_rect.bottom - self.height))
+
+        if self.hurtbox.colliderect(enemy_hitbox):
+
+            dx = self.hurtbox.centerx - enemy_hitbox.centerx
+            dy = self.hurtbox.centery - enemy_hitbox.centery
+
+            overlap_x = (self.hurtbox.width / 2) + (enemy_hitbox.width / 2) - abs(dx)
+            overlap_y = (self.hurtbox.height / 2) + (enemy_hitbox.height / 2) - abs(dy)
+
+            if overlap_x > 0 and (overlap_x < overlap_y or overlap_y < 0):
+                if dx > 0: 
+                    self.x += overlap_x
+                else: 
+                    self.x -= overlap_x
+
+            elif overlap_y > 0 and (overlap_y < overlap_x or overlap_x < 0):
+                if dy > 0:
+                    self.y += overlap_y
+                else: 
+                    self.y -= overlap_y
+
+        self.hurtbox.topleft = (self.x, self.y)
 
         hitbox_y = self.y + (self.height / 2) - (self.hitbox_size[1] / 2) 
 
@@ -308,7 +332,7 @@ class Penguin:
         image = self.current_animation.get_frame().copy()
         if self.damage_flash_timer > 0:
             image.fill(self.flash_color, special_flags=pygame.BLEND_RGB_ADD)
-        
+
         draw_x = self.x - self.hurtbox_offset_x
         draw_y = self.y - self.hurtbox_offset_y
         
@@ -322,7 +346,7 @@ class Penguin:
         surface.blit(image, (draw_x, draw_y))
         
         if debug_show_hitboxes:
-            pygame.draw.rect(surface, (255, 0, 0), pygame.Rect(self.x, self.y, self.width, self.height), 2)
+            pygame.draw.rect(surface, (255, 0, 0), self.hurtbox, 2)
             
             if self.is_special_attacking:
                 pygame.draw.rect(surface, (0, 255, 255), self.left_attack_hitbox_rect, 2)

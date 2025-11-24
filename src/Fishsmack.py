@@ -6,7 +6,7 @@ from seal import Seal
 from giant_petrel import GiantPetrel
 from polar_bear import PolarBear
 from wave_manager import WaveManager
-from healthbar import HealthBar 
+from healthbar import HealthBar
 from special_meter import SpecialMeter
 import os
 import math
@@ -54,7 +54,7 @@ health_bar = HealthBar(scale=SCALE)
 special_meter = SpecialMeter(scale=SCALE)
 penguin.set_special_meter(special_meter)
 
-wave_manager = WaveManager(scale=SCALE, boundary_rect=walkable_rect)
+wave_manager = WaveManager(scale=SCALE, boundary_rect=walkable_rect, penguin=penguin, special_meter=special_meter)
 wave_manager.start_next_wave()
 
 running = True
@@ -78,9 +78,9 @@ while running:
     cutscene_active = False
 
     polar_bear = next((e for e in wave_manager.enemies if isinstance(e, PolarBear)), None)
-    if polar_bear and polar_bear.current_state == polar_bear.STATE_FALLING:
+    if polar_bear and polar_bear.current_state == polar_bear.STATE_INITIAL_LANDING:
         cutscene_active = True
-    
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -96,17 +96,15 @@ while running:
 
     target_x = penguin.x + penguin.width / 2
     target_y = penguin.y + penguin.height / 2
-    
+
     prev_is_special_attacking = penguin.is_special_attacking
 
     if cutscene_active:
-
         dist_to_left = abs(penguin.x - walkable_rect.left)
         dist_to_right = abs(penguin.x + penguin.width - walkable_rect.right)
-        
         target_edge_x = walkable_rect.left if dist_to_left < dist_to_right else walkable_rect.right - penguin.width
-
         speed = penguin.speed * (dt / 1000)
+
         if abs(penguin.x - target_edge_x) > 5:
             if penguin.x < target_edge_x:
                 penguin.x += speed
@@ -125,15 +123,18 @@ while running:
                 penguin.idle_animation.reset()
             penguin.current_animation.update(dt)
 
-        penguin.hitbox_size = (int(50 * penguin.scale), int(40 * penguin.scale)) 
-        hitbox_y = penguin.y + (penguin.height / 2) - (penguin.hitbox_size[1] / 2) 
+        penguin.hitbox_size = (int(50 * penguin.scale), int(40 * penguin.scale))
+        hitbox_y = penguin.y + (penguin.height / 2) - (penguin.hitbox_size[1] / 2)
         hitbox_x = penguin.x + penguin.width - (5 * penguin.scale) if penguin.facing_right else penguin.x - penguin.hitbox_size[0] + (5 * penguin.scale)
         penguin.attack_hitbox_rect.topleft = (-1000, -1000)
-
         penguin.x = max(walkable_rect.left, min(penguin.x, walkable_rect.right - penguin.width))
-        
+
     else:
-        penguin.update(dt, walkable_rect)
+        enemy_hitbox_for_penguin = pygame.Rect(0, 0, 0, 0)
+        if polar_bear and polar_bear.is_alive:
+            enemy_hitbox_for_penguin = polar_bear.hitbox_rect
+            
+        penguin.update(dt, walkable_rect, enemy_hitbox_for_penguin)
 
     wave_manager.update(dt, target_x, target_y)
 
@@ -155,7 +156,7 @@ while running:
         elif penguin.is_special_attacking:
             active_hitboxes.append(penguin.left_attack_hitbox_rect)
             active_hitboxes.append(penguin.right_attack_hitbox_rect)
-            
+
         for hitbox in active_hitboxes:
             for enemy in list(wave_manager.enemies):
                 if enemy.is_alive and hitbox.colliderect(enemy.hitbox_rect):
@@ -186,7 +187,7 @@ while running:
                 if hit_number > enemy.hits_landed:
                     enemy.hits_landed = hit_number
                     should_hit = True
-                    damage_taken = enemy.damage_per_hit 
+                    damage_taken = enemy.damage_per_hit
 
         elif isinstance(enemy, Seal):
             if enemy.is_sliding and enemy.slide_timer >= enemy.slide_buildup_duration:
@@ -194,47 +195,55 @@ while running:
                     if enemy.hits_landed == 0:
                         should_hit = True
                         enemy.hits_landed = 1
-                        damage_taken = enemy.current_damage 
+                        damage_taken = enemy.current_damage
             elif enemy.is_attacking and enemy.attack_rect.colliderect(penguin_hitbox):
                 if enemy.hits_landed == 0:
                     should_hit = True
                     enemy.hits_landed = 1
-                    damage_taken = enemy.current_damage 
+                    damage_taken = enemy.current_damage
 
         elif isinstance(enemy, GiantPetrel):
             if enemy.is_attacking and enemy.current_attack == 'peck' and enemy.attack_rect.colliderect(penguin_hitbox):
                 if enemy.hits_landed == 0:
                     should_hit = True
                     enemy.hits_landed = 1
-                    damage_taken = enemy.peck_damage 
+                    damage_taken = enemy.peck_damage
 
         elif isinstance(enemy, PolarBear) and enemy.current_state == enemy.STATE_FIGHTING:
-             if enemy.hitbox_rect.colliderect(penguin_hitbox):
-                 damage_taken = 0
-                 should_hit = False 
+            if enemy.hitbox_rect.colliderect(penguin_hitbox):
+                damage_taken = 0
+                should_hit = False
 
         if should_hit:
             penguin.take_damage(damage_taken)
             if damage_taken > 0:
                 penguin.external_special_meter.subtract_power(damage_taken * 0.2)
 
+        if isinstance(enemy, PolarBear):
+            enemy.run_collision_and_damage(penguin)
+            if enemy.current_attack_damage > 0 and enemy.attack_hitbox_rect.colliderect(penguin_hitbox):
+                if id(penguin) not in enemy.hits_landed:
+                    penguin.take_damage(enemy.current_attack_damage)
+                    penguin.external_special_meter.subtract_power(enemy.current_attack_damage * 0.2)
+                    enemy.hits_landed.add(id(penguin))
+
     canvas.blit(background, (0, 0))
-    
+
     wave_manager.draw(canvas, DEBUG_SHOW_HITBOXES)
     penguin.draw(canvas, DEBUG_SHOW_HITBOXES)
 
     health_bar.draw(canvas, 20, 20)
-    
+
     if health_bar.frames:
         meter_y = 20 + health_bar.frames[0].get_height() + 5
     else:
         meter_y = 50
-        
+
     special_meter.draw(canvas, 20, meter_y)
 
     if DEBUG_SHOW_BOUNDARIES:
         pygame.draw.rect(canvas, (255, 0, 0), walkable_rect, 2)
-    
+
     if DEBUG_SHOW_HITBOXES:
         pygame.draw.rect(canvas, (255, 255, 0), penguin_hitbox, 2)
 
