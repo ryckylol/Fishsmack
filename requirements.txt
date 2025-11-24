@@ -1,0 +1,1 @@
+pygame (pip install pygame)
