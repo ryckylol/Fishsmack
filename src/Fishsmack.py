@@ -119,8 +119,8 @@ wave_manager.start_next_wave()
 smoke_system = SmokePoofSystem()
 
 running = True
-DEBUG_SHOW_BOUNDARIES = True
-DEBUG_SHOW_HITBOXES = True
+DEBUG_SHOW_BOUNDARIES = False
+DEBUG_SHOW_HITBOXES = False
 
 prev_is_special_attacking = False
 shake_offset = [0, 0]
@@ -279,8 +279,8 @@ while running:
     penguin.draw(canvas, DEBUG_SHOW_HITBOXES)
     smoke_system.draw(canvas)
     health_bar.draw(canvas, 20, 20)
-    meter_y = 20 + (health_bar.frames[0].get_height() + 5 if health_bar.frames else 50)
-    special_meter.draw(canvas, 20, meter_y)
+    meter_y = 20 + (health_bar.frames[0].get_height() + 3 if health_bar.frames else 50)
+    special_meter.draw(canvas, 40, meter_y)
 
     if DEBUG_SHOW_BOUNDARIES:
         pygame.draw.rect(canvas, (255, 0, 0), walkable_rect, 2)
