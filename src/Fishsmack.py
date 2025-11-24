@@ -1,5 +1,6 @@
 import pygame
 import random
+import math
 from penguin import Penguin
 from arctic_fox import ArcticFox
 from seal import Seal
@@ -46,6 +47,68 @@ except FileNotFoundError:
     background = pygame.Surface((display_W, display_H))
     background.fill((50, 50, 50))
 
+class SmokeParticle(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__()
+        self.x = x
+        self.y = y
+        self.size = random.randint(5, 12) 
+        self.max_lifetime = random.randint(30, 60) 
+        self.lifetime = self.max_lifetime
+
+        angle = random.uniform(0, 2 * math.pi)
+        speed = random.uniform(1.0, 3.0) 
+        self.vx = speed * math.cos(angle)
+        self.vy = speed * math.sin(angle) - random.uniform(0.5, 1.5)
+
+    def update(self):
+        self.x += self.vx
+        self.y += self.vy
+        self.vx *= 0.98
+        self.vy *= 0.98
+        self.lifetime -= 1
+        
+    def draw(self, surface):
+        if self.lifetime <= 0:
+            return
+
+        alpha = int(255 * (self.lifetime / self.max_lifetime) ** 2) 
+
+        current_size = max(1, int(self.size * (self.lifetime / self.max_lifetime)))
+
+        grey_value = 40 + int(80 * (1 - self.lifetime / self.max_lifetime))
+        color = (grey_value, grey_value, grey_value)
+
+        particle_surface = pygame.Surface((current_size * 2, current_size * 2), pygame.SRCALPHA)
+        particle_surface.fill((0, 0, 0, 0))
+
+        pygame.draw.circle(
+            particle_surface, 
+            (*color, alpha),
+            (current_size, current_size), 
+            current_size
+        )
+
+        surface.blit(particle_surface, (int(self.x) - current_size, int(self.y) - current_size))
+
+class SmokePoofSystem:
+    def __init__(self):
+        self.particles = []
+
+    def create_poof(self, x, y, num_particles=30):
+        for _ in range(num_particles):
+            self.particles.append(SmokeParticle(x, y))
+
+    def update(self):
+        for particle in self.particles:
+            particle.update()
+
+        self.particles = [p for p in self.particles if p.lifetime > 0]
+
+    def draw(self, surface):
+        for particle in self.particles:
+            particle.draw(surface)
+
 penguin = Penguin(scale=SCALE)
 penguin.x = walkable_rect.centerx - (penguin.width / 2)
 penguin.y = walkable_rect.bottom - penguin.height
@@ -57,6 +120,8 @@ penguin.set_special_meter(special_meter)
 wave_manager = WaveManager(scale=SCALE, boundary_rect=walkable_rect, penguin=penguin, special_meter=special_meter)
 wave_manager.start_next_wave()
 
+smoke_system = SmokePoofSystem() 
+
 running = True
 DEBUG_SHOW_BOUNDARIES = True
 DEBUG_SHOW_HITBOXES = True
@@ -65,6 +130,8 @@ prev_is_special_attacking = False
 
 shake_offset = [0, 0]
 shake_intensity = 0
+
+was_penguin_alive = penguin.is_alive
 
 while running:
     dt = clock.tick(FPS)
@@ -85,7 +152,7 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
-        if not cutscene_active:
+        if penguin.is_alive and not cutscene_active:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_j:
                     penguin.start_attack()
@@ -136,6 +203,7 @@ while running:
             
         penguin.update(dt, walkable_rect, enemy_hitbox_for_penguin)
 
+    smoke_system.update()
     wave_manager.update(dt, target_x, target_y)
 
     for enemy in wave_manager.enemies:
@@ -163,6 +231,18 @@ while running:
                     if enemy not in penguin.enemies_hit_in_attack:
                         damage_dealt = penguin.current_attack_damage
                         enemy.take_damage(damage_dealt)
+
+                        if enemy.health <= 0:
+                            num_particles = 30 
+                            if isinstance(enemy, PolarBear):
+                                num_particles = 200
+                            
+                            smoke_system.create_poof(
+                                enemy.x + enemy.width / 2, 
+                                enemy.y + enemy.height,
+                                num_particles
+                            )
+
                         if not penguin.is_special_attacking:
                             penguin.external_special_meter.add_power(damage_dealt * 0.5)
                             penguin.enemies_hit_in_attack.add(enemy)
@@ -227,11 +307,19 @@ while running:
                     penguin.external_special_meter.subtract_power(enemy.current_attack_damage * 0.2)
                     enemy.hits_landed.add(id(penguin))
 
+    if penguin.health <= 0 and was_penguin_alive:
+        smoke_system.create_poof(
+            penguin.x + penguin.width / 2, 
+            penguin.y + penguin.height
+        )
+        
+    was_penguin_alive = penguin.is_alive
+
     canvas.blit(background, (0, 0))
 
     wave_manager.draw(canvas, DEBUG_SHOW_HITBOXES)
     penguin.draw(canvas, DEBUG_SHOW_HITBOXES)
-
+    smoke_system.draw(canvas)
     health_bar.draw(canvas, 20, 20)
 
     if health_bar.frames:
