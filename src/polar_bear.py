@@ -264,7 +264,7 @@ class PolarBear(pygame.sprite.Sprite):
             self.attack_hitbox_rect.topleft = (-1000,-1000)
             self.vulnerable = True
             self.fallen_permanent = True
-            self.is_alive = self.health > 0
+            self.is_alive = False
             return
 
         elif self.current_state == self.STATE_FINAL_FALL:
