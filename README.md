@@ -8,7 +8,7 @@ Play as a penguin wielding a fish and fight your way through waves of enemies to
 <img src="fishsmackDemo.gif" width="300">  
 
 ---
-# Controls
+## Controls
 **WASD** - Movement  
 **J** - Light Attack (Can cancel into itself or other attacks)  
 **K** - Heavy Attack (Using Heavy attack puts every attack EXCEPT Special attacks on cooldown)  
@@ -34,6 +34,35 @@ J > J > K (Light, Light, Heavy)
 
 ---
 
-## Requirements 
-- Python 3.8+
+## Requirements
+- Python 3.8+---
 - [Pygame](https://www.pygame.org/)  
+
+---
+
+## Possible Future Improvements
+While Fishsmack is fully playable in its current form, there are several areas that could be improved on to enhance player experience and deepen gameplay.
+
+### **Additional Enemy Variety**
+New enemy types with distinct movement patterns, attack styles, or defensive behaviors would deepen the player experience
+
+### **Expanded Combo System** 
+A more advanced combo system, such as aerial attacks, juggle mechanics, or designated combo tools would create more depth and creativity to the combat.
+
+### **Improved Visuals + Stage Variety**
+A parallax-scrolling background and movement between different stages would liven the environment
+
+### **SFX Enhancements**
+Currently there are only three sources of audio in the game, background music, the fish slap sfx, and the polar bears roar.
+
+### **New Modes**
+Additional modes would help extend playtime:
+- **Infinite/Survival Mode with endless waves**
+- **Boss Rush**
+- **Difficulty Scalings**
+
+## **Story or Cutscenes**
+Intros or any type of narrative could add more personality to the enemies (currently there is only one cutscene-like element)
+
+## **Optimization**
+The collision on certain hitboxes can feel unfair at times and the enemy AI needs refining.
