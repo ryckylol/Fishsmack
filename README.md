@@ -7,6 +7,15 @@ Play as a penguin wielding a fish and fight your way through waves of enemies to
 ## Demo
 <img src="fishsmackDemo.gif" width="300">  
 
+[Fishsmack Demo](fishsmackDemo.mp4)
+
+---  
+
+### FOR PFDA
+**Commentary Vid + Link to Github**  
+https://www.youtube.com/watch?v=YVcPgKtNxks  
+https://github.com/ryckylol/Fishsmack
+
 ---
 ## Controls
 **WASD** - Movement  
