@@ -14,7 +14,7 @@ Play as a penguin wielding a fish and fight your way through waves of enemies to
   width="100%"
   height="500"
   src="https://www.youtube.com/embed/wtl3n3csMGM?si=ZdoYNi-9dg5LpLyB"
-  title="Level Design Project"
+  title="Fishsmack Project"
   frameborder="0"
   allowfullscreen>
 </iframe>
