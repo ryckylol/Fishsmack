@@ -1,22 +1,26 @@
 # Fishsmack
-A 2D beat 'em up game set in the arctic, built with Pygame and Aseprite.
+A 2D beat 'em up game set in the Arctic, built with Pygame and Aseprite.
 Play as a penguin wielding a fish and fight your way through waves of enemies to defeat the final boss.
 
----
-
-## Demo
 <img src="fishsmackDemo.gif" width="300">  
 
-[Fishsmack Demo](fishsmackDemo.mp4)
+---
 
----  
+## Demo Vid
 
-### FOR PFDA
-**Commentary Vid + Link to Github**  
-https://www.youtube.com/watch?v=YVcPgKtNxks  
-https://github.com/ryckylol/Fishsmack
+[**Fishsmack Demo Vid Link →**](https://youtu.be/wtl3n3csMGM)
+
+<iframe
+  width="100%"
+  height="500"
+  src="https://www.youtube.com/embed/wtl3n3csMGM?si=ZdoYNi-9dg5LpLyB"
+  title="Level Design Project"
+  frameborder="0"
+  allowfullscreen>
+</iframe>
 
 ---
+
 ## Controls
 **WASD** - Movement  
 **J** - Light Attack (Can cancel into itself or other attacks)  
